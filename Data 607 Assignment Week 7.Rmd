@@ -1,0 +1,127 @@
+---
+title: "Data 607 Assignment Week 7"
+author: "Ajay Arora"
+date: "September 28, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r}
+library(XML)
+library(plyr)
+library(dplyr)
+#library(xml2)
+library(RCurl)
+library(httr)
+library(rvest)
+library(kableExtra)
+#library(jsonlite)
+require(RJSONIO)
+library(DT)
+library(jsonlite)
+library(purrr)
+library(data.table)
+```
+
+Reference: https://www.datacamp.com/community/tutorials/r-data-import-tutorial#xml
+           
+           https://www.tutorialspoint.com/r/r_xml_files.htm
+           
+           https://subscription.packtpub.com/book/big_data_and_business_intelligence/9781783989065/1/ch01lvl1sec11/reading-xml-data
+           
+           https://www.kaggle.com/robertoruiz/how-convert-json-files-into-data-frames-in-r
+
+```{r}
+##Read html document
+url1 = "https://raw.githubusercontent.com/AjayArora35/Data-607-Assignment-Week-7/master/Source Week Assignment 7.html"
+download.file(url1, destfile = "scrapedpage1.html", quiet=TRUE)
+doc1 = htmlParse("scrapedpage1.html", encoding = "ISO-8859-1")
+# For debugging doc1
+
+z1 = as.data.frame(readHTMLTable(doc1, stringsAsFactors = FALSE, header = TRUE))
+
+#Rename the columns becuase they contain "NULL."
+names(z1)[1] <- "title"
+names(z1)[2] <- "author"
+names(z1)[3] <- "year"
+names(z1)[4] <- "price"
+names(z1)[5] <- "_category"
+
+z1 %>% kable() %>%  kable_styling()
+```
+
+```{r}
+url2 = "https://raw.githubusercontent.com/AjayArora35/Data-607-Assignment-Week-7/master/Source Week Assignment 7.xml"
+
+download.file(url2, destfile = "scrapedpage1.xml", quiet=TRUE)
+doc2 = xmlParse("scrapedpage1.xml", encoding = "ISO-8859-1")
+#For debugging doc2
+
+rootNode <- xmlRoot(doc2)
+#rootNode[1] 
+
+xml <- ldply(xmlToList(rootNode), data.frame)
+#For debugging xml
+
+z2 <- xml %>% select(-c(.id, title..attrs))
+colnames(z2) <- c('title','author','year','price', '_category', 'author.1', 'author.2', 'author.3', 'author.4')
+
+z2[1:4,] %>% kable() %>%  kable_styling()
+```
+
+```{r}
+
+url3 <- "https://raw.githubusercontent.com/AjayArora35/Data-607-Assignment-Week-7/master/Source Week Assignment 7.json"
+
+pop_proj_data_df <- RJSONIO::fromJSON(url3)
+
+#Since we get back a list, lets convert to an array and construt a matrix then convert to data frame
+arr <- array(pop_proj_data_df[[1]]$book)
+
+#Get number of items in list
+iterations <- length(pop_proj_data_df[[1]]$book)
+#Establish matrix to construct our data frame 
+m <- matrix(ncol = 5, nrow = iterations)
+
+row <- 1
+
+#Construct matrix and populate with list items 
+for(i in 1:iterations){
+  for ( j in arr[i]) { 
+    if(j$`-category` != ''){
+      m[row, 5] <- (j$`-category`)
+    }
+    if(j$year != ''){
+      m[row, 3] <- (j$year)
+    }
+    if(j$price != ''){
+      m[row, 4] <- (j$price)
+    }
+    if(j$title[2] != ''){
+      m[row, 1] <- (j$title[2])
+    }
+    a <- paste0(j$author, collaspe = ' ')
+    if(j$author[1] != ''){
+      m[row, 2] <- toString(a)
+    }
+
+    row <- row + 1
+    
+  }
+  
+}
+#For debugging m
+
+z3 <- data.frame(m)
+x <- c('title','author','year','price', '_category')
+colnames(z3) <- x
+z3 %>% kable() %>%  kable_styling()
+```
+
+##Data frames are different for XML compared with HTML and JSON.
+## The HTML file produced a table where the multiple authors were listed in a single column.  The XML file produced a table where the multiple authors were separated into different columns.  Lastly, JSON file produced a list, where the authors were all together, and I decided to produce a table where all the authors were stored in a single column, similar to HTML.  
